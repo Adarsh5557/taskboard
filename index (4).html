@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TaskBoard</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--ink:#1c1c1a;--mute:#6b6a64;--line:#e4e2da;--acc:#2f6fed;--acc2:#e8efff;--ok:#2a9d6a;--warn:#d9822b;--red:#d64545;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151514;--card:#1f1f1d;--ink:#eeede8;--mute:#9a988f;--line:#33322e;--acc:#6b9bff;--acc2:#222c45;--ok:#4cc790;--warn:#f0a050;--red:#f07070}}
+:root[data-theme="dark"]{--bg:#151514;--card:#1f1f1d;--ink:#eeede8;--mute:#9a988f;--line:#33322e;--acc:#6b9bff;--acc2:#222c45;--ok:#4cc790;--warn:#f0a050;--red:#f07070}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.45}
+.wrap{max-width:720px;margin:0 auto;padding:20px 16px 90px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+h1{font-size:22px;margin:0}
+.sub{color:var(--mute);font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.stat b{font-size:22px;display:block}
+.stat span{font-size:12px;color:var(--mute)}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px}
+.tab{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 14px;border-radius:99px;font-size:14px;cursor:pointer;white-space:nowrap}
+.tab.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}
+.task{display:flex;gap:12px;align-items:flex-start}
+.chk{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);background:none;cursor:pointer;flex:none;margin-top:2px;color:#fff;font-size:13px;line-height:1}
+.done .chk{background:var(--ok);border-color:var(--ok)}
+.done .title{text-decoration:line-through;color:var(--mute)}
+.title{font-weight:600}
+.note{color:var(--mute);font-size:14px;white-space:pre-wrap;margin-top:2px}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pill{font-size:12px;padding:2px 9px;border-radius:99px;background:var(--acc2);color:var(--acc)}
+.pill.high{background:transparent;border:1px solid var(--red);color:var(--red)}
+.pill.med{background:transparent;border:1px solid var(--warn);color:var(--warn)}
+.pill.late{background:var(--red);color:#fff}
+.photo{margin-top:10px;max-width:100%;max-height:260px;border-radius:10px;border:1px solid var(--line);cursor:zoom-in}
+.del{margin-left:auto;background:none;border:none;color:var(--mute);cursor:pointer;font-size:18px}
+.empty{text-align:center;color:var(--mute);padding:40px 10px}
+.fab{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;background:var(--acc);color:#fff;border:none;font-size:30px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+dialog{border:none;border-radius:16px;padding:0;width:min(520px,94vw);background:var(--card);color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+form{padding:18px;display:grid;gap:10px}
+input,textarea,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{min-height:80px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{font-size:12px;color:var(--mute);display:grid;gap:4px}
+.btn{padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;font:inherit}
+.btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.actions{display:flex;gap:8px;justify-content:flex-end}
+#prev{max-width:100%;max-height:180px;border-radius:10px;display:none}
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:9}
+.lb img{max-width:96vw;max-height:92vh}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1>TaskBoard</h1><div class="sub" id="today"></div></div>
+    <button class="btn" id="exp">Export</button>
+  </header>
+  <div class="stats">
+    <div class="stat"><b id="s1">0</b><span>Due today</span></div>
+    <div class="stat"><b id="s2">0</b><span>Overdue</span></div>
+    <div class="stat"><b id="s3">0</b><span>Done</span></div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div id="list"></div>
+</div>
+<button class="fab" id="add" aria-label="Add task">+</button>
+
+<dialog id="dlg">
+  <form id="f">
+    <h2 style="margin:0">New task</h2>
+    <label>Title<input id="t" required placeholder="e.g. Linear Algebra TA session"></label>
+    <label>Notes<textarea id="n" placeholder="Details, links, room number..."></textarea></label>
+    <div class="row">
+      <label>Date<input type="date" id="d"></label>
+      <label>Time<input type="time" id="tm"></label>
+    </div>
+    <div class="row">
+      <label>Category<select id="c"><option>Schedule</option><option>Study</option><option>Research</option><option>Personal</option></select></label>
+      <label>Priority<select id="p"><option value="low">Low</option><option value="med">Medium</option><option value="high">High</option></select></label>
+    </div>
+    <label>Photo (camera or gallery)<input type="file" id="ph" accept="image/*" capture="environment"></label>
+    <img id="prev" alt="">
+    <div class="actions"><button type="button" class="btn" id="cx">Cancel</button><button class="btn pri">Save</button></div>
+  </form>
+</dialog>
+<div class="lb" id="lb"><img alt=""></div>
+
+<script>
+const KEY="taskboard.v1";
+let tasks=[],tab="Today",img=null;
+try{tasks=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){tasks=[]}
+if(!tasks.length){const t=new Date().toISOString().slice(0,10);tasks=[
+{id:1,title:"Linear Algebra TA session",note:"Prepare problem set 4 solutions",date:t,time:"17:00",cat:"Schedule",pri:"high",done:false,img:null},
+{id:2,title:"Email research internship leads",note:"Follow up on 3 pending replies",date:t,time:"",cat:"Research",pri:"med",done:false,img:null},
+{id:3,title:"Revise backprop notes",note:"",date:"",time:"",cat:"Study",pri:"low",done:true,img:null}]}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(tasks))}catch(e){alert("Storage full. Delete some photos or export.")}};
+const $=id=>document.getElementById(id);
+const iso=()=>new Date().toISOString().slice(0,10);
+$("today").textContent=new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"});
+const tabs=["Today","Upcoming","All","Schedule","Study","Research","Personal","Done"];
+function match(t){const d=iso();
+ if(tab==="Today")return !t.done&&t.date&&t.date<=d;
+ if(tab==="Upcoming")return !t.done&&t.date>d;
+ if(tab==="All")return true;
+ if(tab==="Done")return t.done;
+ return t.cat===tab&&!t.done}
+function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function render(){
+ $("tabs").innerHTML=tabs.map(x=>`<button class="tab ${x===tab?"on":""}" data-t="${x}">${x}</button>`).join("");
+ const d=iso();
+ $("s1").textContent=tasks.filter(t=>!t.done&&t.date===d).length;
+ $("s2").textContent=tasks.filter(t=>!t.done&&t.date&&t.date<d).length;
+ $("s3").textContent=tasks.filter(t=>t.done).length;
+ const rows=tasks.filter(match).sort((a,b)=>(a.date||"9")+(a.time||"")>(b.date||"9")+(b.time||"")?1:-1);
+ $("list").innerHTML=rows.length?rows.map(t=>`<div class="card"><div class="task ${t.done?"done":""}">
+ <button class="chk" data-k="${t.id}">${t.done?"✓":""}</button>
+ <div style="flex:1;min-width:0"><div class="title">${esc(t.title)}</div>
+ ${t.note?`<div class="note">${esc(t.note)}</div>`:""}
+ <div class="meta"><span class="pill">${t.cat}</span>
+ ${t.date?`<span class="pill ${!t.done&&t.date<d?"late":""}">${t.date}${t.time?" · "+t.time:""}</span>`:""}
+ ${t.pri!=="low"?`<span class="pill ${t.pri}">${t.pri==="high"?"High":"Medium"}</span>`:""}</div>
+ ${t.img?`<img class="photo" src="${t.img}" alt="attachment">`:""}</div>
+ <button class="del" data-x="${t.id}" aria-label="Delete">×</button></div></div>`).join(""):`<div class="empty">Nothing here. Tap + to add a task.</div>`}
+document.addEventListener("click",e=>{
+ const g=e.target;
+ if(g.dataset.t){tab=g.dataset.t;render()}
+ if(g.dataset.k){const t=tasks.find(x=>x.id==g.dataset.k);t.done=!t.done;save();render()}
+ if(g.dataset.x&&confirm("Delete this task?")){tasks=tasks.filter(x=>x.id!=g.dataset.x);save();render()}
+ if(g.classList.contains("photo")){$("lb").firstElementChild.src=g.src;$("lb").style.display="flex"}
+});
+$("lb").onclick=()=>$("lb").style.display="none";
+$("add").onclick=()=>{$("f").reset();img=null;$("prev").style.display="none";$("d").value=iso();$("dlg").showModal()};
+$("cx").onclick=()=>$("dlg").close();
+$("ph").onchange=e=>{const f=e.target.files[0];if(!f)return;
+ const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{
+  const s=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement("canvas");
+  c.width=im.width*s;c.height=im.height*s;c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+  img=c.toDataURL("image/jpeg",.7);$("prev").src=img;$("prev").style.display="block"};im.src=r.result};r.readAsDataURL(f)};
+$("f").onsubmit=e=>{e.preventDefault();
+ tasks.push({id:Date.now(),title:$("t").value.trim(),note:$("n").value.trim(),date:$("d").value,time:$("tm").value,cat:$("c").value,pri:$("p").value,done:false,img});
+ save();$("dlg").close();render()};
+$("exp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(tasks)],{type:"application/json"}));a.download="tasks.json";a.click()};
+render();
+</script>
+</body>
+</html>
