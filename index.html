@@ -70,7 +70,7 @@ label{font-size:12px;color:var(--mute);display:grid;gap:4px}
 
 <dialog id="dlg">
   <form id="f">
-    <h2 style="margin:0">New task</h2>
+    <h2 style="margin:0" id="dt">New task</h2>
     <label>Title<input id="t" required placeholder="e.g. Linear Algebra TA session"></label>
     <label>Notes<textarea id="n" placeholder="Details, links, room number..."></textarea></label>
     <div class="row">
@@ -82,7 +82,7 @@ label{font-size:12px;color:var(--mute);display:grid;gap:4px}
       <label>Priority<select id="p"><option value="low">Low</option><option value="med">Medium</option><option value="high">High</option></select></label>
     </div>
     <label>Photo (camera or gallery)<input type="file" id="ph" accept="image/*" capture="environment"></label>
-    <img id="prev" alt="">
+    <img id="prev" alt=""><button type="button" class="btn" id="rm" style="display:none">Remove photo</button>
     <div class="actions"><button type="button" class="btn" id="cx">Cancel</button><button class="btn pri">Save</button></div>
   </form>
 </dialog>
@@ -90,15 +90,15 @@ label{font-size:12px;color:var(--mute);display:grid;gap:4px}
 
 <script>
 const KEY="taskboard.v1";
-let tasks=[],tab="Today",img=null;
+let tasks=[],tab="Today",img=null,editId=null;
 try{tasks=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){tasks=[]}
-if(!tasks.length){const t=new Date().toISOString().slice(0,10);tasks=[
+if(!tasks.length){const t=iso();tasks=[
 {id:1,title:"Linear Algebra TA session",note:"Prepare problem set 4 solutions",date:t,time:"17:00",cat:"Schedule",pri:"high",done:false,img:null},
 {id:2,title:"Email research internship leads",note:"Follow up on 3 pending replies",date:t,time:"",cat:"Research",pri:"med",done:false,img:null},
 {id:3,title:"Revise backprop notes",note:"",date:"",time:"",cat:"Study",pri:"low",done:true,img:null}]}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(tasks))}catch(e){alert("Storage full. Delete some photos or export.")}};
 const $=id=>document.getElementById(id);
-const iso=()=>new Date().toISOString().slice(0,10);
+function iso(){const n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0")+"-"+String(n.getDate()).padStart(2,"0")}
 $("today").textContent=new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"});
 const tabs=["Today","Upcoming","All","Schedule","Study","Research","Personal","Done"];
 function match(t){const d=iso();
@@ -123,24 +123,28 @@ function render(){
  ${t.date?`<span class="pill ${!t.done&&t.date<d?"late":""}">${t.date}${t.time?" · "+t.time:""}</span>`:""}
  ${t.pri!=="low"?`<span class="pill ${t.pri}">${t.pri==="high"?"High":"Medium"}</span>`:""}</div>
  ${t.img?`<img class="photo" src="${t.img}" alt="attachment">`:""}</div>
- <button class="del" data-x="${t.id}" aria-label="Delete">×</button></div></div>`).join(""):`<div class="empty">Nothing here. Tap + to add a task.</div>`}
+ <div style="margin-left:auto;display:flex"><button class="del" data-e="${t.id}" aria-label="Edit">✎</button><button class="del" data-x="${t.id}" aria-label="Delete">×</button></div></div></div>`).join(""):`<div class="empty">Nothing here. Tap + to add a task.</div>`}
 document.addEventListener("click",e=>{
  const g=e.target;
  if(g.dataset.t){tab=g.dataset.t;render()}
+ if(g.dataset.e)openEdit(g.dataset.e);
  if(g.dataset.k){const t=tasks.find(x=>x.id==g.dataset.k);t.done=!t.done;save();render()}
  if(g.dataset.x&&confirm("Delete this task?")){tasks=tasks.filter(x=>x.id!=g.dataset.x);save();render()}
  if(g.classList.contains("photo")){$("lb").firstElementChild.src=g.src;$("lb").style.display="flex"}
 });
 $("lb").onclick=()=>$("lb").style.display="none";
-$("add").onclick=()=>{$("f").reset();img=null;$("prev").style.display="none";$("d").value=iso();$("dlg").showModal()};
+$("add").onclick=()=>{$("f").reset();editId=null;img=null;$("dt").textContent="New task";$("prev").style.display="none";$("rm").style.display="none";$("d").value=iso();$("dlg").showModal()};
+function openEdit(id){const t=tasks.find(x=>x.id==id);editId=t.id;$("dt").textContent="Edit task";$("t").value=t.title;$("n").value=t.note;$("d").value=t.date;$("tm").value=t.time;$("c").value=t.cat;$("p").value=t.pri;$("ph").value="";img=t.img;if(img){$("prev").src=img;$("prev").style.display="block";$("rm").style.display="inline-block"}else{$("prev").style.display="none";$("rm").style.display="none"}$("dlg").showModal()}
+$("rm").onclick=()=>{img=null;$("ph").value="";$("prev").style.display="none";$("rm").style.display="none"};
 $("cx").onclick=()=>$("dlg").close();
 $("ph").onchange=e=>{const f=e.target.files[0];if(!f)return;
  const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{
   const s=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement("canvas");
   c.width=im.width*s;c.height=im.height*s;c.getContext("2d").drawImage(im,0,0,c.width,c.height);
-  img=c.toDataURL("image/jpeg",.7);$("prev").src=img;$("prev").style.display="block"};im.src=r.result};r.readAsDataURL(f)};
+  img=c.toDataURL("image/jpeg",.7);$("prev").src=img;$("prev").style.display="block";$("rm").style.display="inline-block"};im.src=r.result};r.readAsDataURL(f)};
 $("f").onsubmit=e=>{e.preventDefault();
- tasks.push({id:Date.now(),title:$("t").value.trim(),note:$("n").value.trim(),date:$("d").value,time:$("tm").value,cat:$("c").value,pri:$("p").value,done:false,img});
+ const o={title:$("t").value.trim(),note:$("n").value.trim(),date:$("d").value,time:$("tm").value,cat:$("c").value,pri:$("p").value,img};
+ if(editId){Object.assign(tasks.find(x=>x.id==editId),o)}else{tasks.push({id:Date.now(),done:false,...o})}
  save();$("dlg").close();render()};
 $("exp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(tasks)],{type:"application/json"}));a.download="tasks.json";a.click()};
 render();
