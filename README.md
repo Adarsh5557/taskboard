@@ -1,6 +1,6 @@
 # TaskBoard
 
-just a simple project haaaahhaaa
+
 
 > No AI. No blockchain. No microservices. No 47 dependencies. Just one HTML file and a lot of unfinished tasks.
 
